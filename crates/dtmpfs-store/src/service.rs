@@ -44,6 +44,15 @@ impl Store for StoreService {
         let data = Bytes::from(r.data);
         let len = data.len() as u64;
 
+        // Stale-write rejection: refuse writes whose generation is older than
+        // the highest generation we have already stored for this logical block.
+        let logical = (key.ino, key.block_idx);
+        if let Some(hw) = self.state.high_water.get(&logical) {
+            if key.generation < *hw {
+                return Err(Status::failed_precondition("stale generation"));
+            }
+        }
+
         // Budget check (racy for v1 — acceptable, see LLD §5.5)
         if self.state.ram_used.load(Ordering::Relaxed) + len > self.state.ram_budget {
             return Err(Status::resource_exhausted("ram budget exceeded"));
@@ -57,6 +66,12 @@ impl Store for StoreService {
             .unwrap_or(0);
         self.state.ram_used.fetch_add(len, Ordering::Relaxed);
         self.state.ram_used.fetch_sub(prev_len, Ordering::Relaxed);
+
+        // Advance high-water mark.
+        self.state.high_water
+            .entry(logical)
+            .and_modify(|hw| { if key.generation > *hw { *hw = key.generation; } })
+            .or_insert(key.generation);
 
         Ok(Response::new(WriteBlockResp { len: len as u32 }))
     }
@@ -73,6 +88,7 @@ impl Store for StoreService {
                 .ram_used
                 .fetch_sub(prev.len() as u64, Ordering::Relaxed);
         }
+        self.state.high_water.remove(&(key.ino, key.block_idx));
         Ok(Response::new(Empty {}))
     }
 

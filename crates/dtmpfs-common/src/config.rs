@@ -24,6 +24,8 @@ pub struct MetaConfig {
     pub max_open_handles:     u64,
     #[serde(default)]
     pub gc_interval_ms:       Option<u64>,
+    #[serde(default)]
+    pub debug_http_listen:    Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]

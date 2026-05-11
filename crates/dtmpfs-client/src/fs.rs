@@ -110,10 +110,11 @@ impl DtmpfsFs {
             }
         }
         let placement = of.block_map.get(&idx).ok_or(DtmpfsError::NotFound)?;
+        let mut last_err = DtmpfsError::StoreUnavailable(placement.primary.clone());
         for node in std::iter::once(&placement.primary).chain(placement.replicas.iter()) {
             let mut client = match self.stores.get(node).await {
                 Ok(c) => c,
-                Err(_) => continue,
+                Err(e) => { last_err = e; continue; }
             };
             let req = self.authed(ReadBlockReq {
                 key: Some(dtmpfs_proto::store::BlockKey {
@@ -133,10 +134,16 @@ impl DtmpfsFs {
                 Err(s) if s.code() == tonic::Code::NotFound => {
                     return Ok(Bytes::from(vec![0u8; self.block_size]));
                 }
-                Err(_) => continue,
+                Err(s) => {
+                    // Evict cached channel so the next attempt reconnects.
+                    self.stores.evict(node);
+                    last_err = DtmpfsError::StoreUnavailable(node.clone());
+                    tracing::warn!(node = node.as_str(), code = ?s.code(), "read_block failed, trying next replica");
+                    continue;
+                }
             }
         }
-        Err(DtmpfsError::NotFound)
+        Err(last_err)
     }
 
     pub async fn apply_write(

@@ -37,4 +37,8 @@ impl StoreClientPool {
     pub fn refresh_addrs(&self, m: HashMap<NodeId, String>) {
         self.addrs.store(Arc::new(m));
     }
+
+    pub fn evict(&self, id: &NodeId) {
+        self.clients.remove(id);
+    }
 }

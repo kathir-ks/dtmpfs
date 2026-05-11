@@ -4,6 +4,7 @@ mod service;
 mod state;
 
 use auth::check_token;
+use debug::spawn_debug_http;
 use service::MetaService;
 use state::{MetaState, spawn_heartbeat_watcher};
 use std::time::Duration;
@@ -29,6 +30,9 @@ async fn main() -> anyhow::Result<()> {
     let state = MetaState::new(meta_cfg.replication_factor);
     let dead = Duration::from_millis(meta_cfg.heartbeat_timeout_ms);
     spawn_heartbeat_watcher(state.clone(), dead);
+    if let Some(bind) = meta_cfg.debug_http_listen.clone() {
+        spawn_debug_http(state.clone(), bind);
+    }
     let token = meta_cfg.cluster_token.clone();
     let svc = MetaService { state, token: token.clone() };
     let addr = meta_cfg.listen.parse()?;
