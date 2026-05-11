@@ -1,0 +1,12 @@
+[package]
+name = "dtmpfs-proto"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+tonic = { workspace = true }
+prost = { workspace = true }
+bytes = { workspace = true }
+
+[build-dependencies]
+tonic-build = { workspace = true }

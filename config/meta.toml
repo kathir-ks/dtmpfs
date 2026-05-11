@@ -1,0 +1,6 @@
+role             = "meta"
+node_id          = "meta-1"
+listen           = "0.0.0.0:7100"
+cluster_token    = "dev-secret"
+replication_factor   = 1
+heartbeat_timeout_ms = 5000

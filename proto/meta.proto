@@ -1,0 +1,159 @@
+syntax = "proto3";
+package dtmpfs.meta.v1;
+
+message Empty {}
+
+message Attr {
+  uint64 ino        = 1;
+  uint64 size       = 2;
+  uint64 blocks     = 3;
+  uint64 generation = 4;
+  uint32 mode       = 5;
+  uint32 nlink      = 6;
+  uint32 uid        = 7;
+  uint32 gid        = 8;
+  int64  atime_s    = 9;
+  uint32 atime_ns   = 10;
+  int64  mtime_s    = 11;
+  uint32 mtime_ns   = 12;
+  int64  ctime_s    = 13;
+  uint32 ctime_ns   = 14;
+}
+
+message BlockLoc {
+  uint64          block_idx = 1;
+  string          primary   = 2;
+  repeated string replicas  = 3;
+}
+
+message DirEntry {
+  string name = 1;
+  uint64 ino  = 2;
+  uint32 kind = 3;
+}
+
+message NodeInfo {
+  string node_id  = 1;
+  string addr     = 2;
+  enum Status {
+    UNKNOWN  = 0;
+    UP       = 1;
+    DOWN     = 2;
+    DRAINING = 3;
+  }
+  Status status          = 3;
+  uint64 used_bytes      = 4;
+  uint64 capacity_bytes  = 5;
+  int64  last_heartbeat_s = 6;
+}
+
+message NodeList { repeated NodeInfo nodes = 1; }
+
+message LookupReq  { uint64 parent_ino = 1; string name = 2; }
+message LookupResp { Attr attr = 1; }
+message GetAttrReq { uint64 ino = 1; }
+
+message SetAttrReq {
+  uint64           ino      = 1;
+  optional uint64  size     = 2;
+  optional uint32  mode     = 3;
+  optional uint32  uid      = 4;
+  optional uint32  gid      = 5;
+  optional int64   atime_s  = 6;
+  optional uint32  atime_ns = 7;
+  optional int64   mtime_s  = 8;
+  optional uint32  mtime_ns = 9;
+}
+message SetAttrResp { Attr attr = 1; }
+
+message CreateReq {
+  uint64 parent_ino = 1;
+  string name       = 2;
+  uint32 mode       = 3;
+  uint32 uid        = 4;
+  uint32 gid        = 5;
+}
+message CreateResp {
+  Attr             attr      = 1;
+  uint64           fh        = 2;
+  repeated BlockLoc block_map = 3;
+}
+
+message MkdirReq {
+  uint64 parent_ino = 1;
+  string name       = 2;
+  uint32 mode       = 3;
+  uint32 uid        = 4;
+  uint32 gid        = 5;
+}
+
+message UnlinkReq { uint64 parent_ino = 1; string name = 2; }
+message RmdirReq  { uint64 parent_ino = 1; string name = 2; }
+
+message RenameReq {
+  uint64 src_parent_ino = 1;
+  string src_name       = 2;
+  uint64 dst_parent_ino = 3;
+  string dst_name       = 4;
+}
+
+message ReadDirReq {
+  uint64 ino         = 1;
+  bytes  cookie      = 2;
+  uint32 max_entries = 3;
+}
+message ReadDirResp {
+  repeated DirEntry entries     = 1;
+  bytes             next_cookie = 2;
+  bool              eof         = 3;
+}
+
+message OpenReq  { uint64 ino = 1; uint32 flags = 2; }
+message OpenResp {
+  Attr             attr      = 1;
+  uint64           fh        = 2;
+  repeated BlockLoc block_map = 3;
+}
+
+message CloseReq {
+  uint64          fh                  = 1;
+  uint64          ino                 = 2;
+  uint64          expected_generation = 3;
+  uint64          new_size            = 4;
+  repeated uint64 written_block_idxs  = 5;
+  int64           mtime_s             = 6;
+  uint32          mtime_ns            = 7;
+}
+message CloseResp { Attr attr = 1; }
+
+message AllocReq {
+  uint64          ino        = 1;
+  repeated uint64 block_idxs = 2;
+}
+message AllocResp { repeated BlockLoc block_map = 1; }
+
+message HeartbeatReq {
+  string node_id        = 1;
+  string addr           = 2;
+  uint64 used_bytes     = 3;
+  uint64 capacity_bytes = 4;
+  uint64 epoch_s        = 5;
+}
+message HeartbeatResp { NodeList cluster = 1; }
+
+service Meta {
+  rpc Lookup        (LookupReq)      returns (LookupResp);
+  rpc GetAttr       (GetAttrReq)     returns (Attr);
+  rpc SetAttr       (SetAttrReq)     returns (SetAttrResp);
+  rpc Create        (CreateReq)      returns (CreateResp);
+  rpc Mkdir         (MkdirReq)       returns (Attr);
+  rpc Unlink        (UnlinkReq)      returns (Empty);
+  rpc Rmdir         (RmdirReq)       returns (Empty);
+  rpc Rename        (RenameReq)      returns (Empty);
+  rpc ReadDir       (ReadDirReq)     returns (ReadDirResp);
+  rpc Open          (OpenReq)        returns (OpenResp);
+  rpc Close         (CloseReq)       returns (CloseResp);
+  rpc AllocateBlocks(AllocReq)       returns (AllocResp);
+  rpc HeartbeatNode (HeartbeatReq)   returns (HeartbeatResp);
+  rpc ListNodes     (Empty)          returns (NodeList);
+}

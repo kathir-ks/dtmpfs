@@ -1,0 +1,8 @@
+role             = "store"
+node_id          = "store-1"
+listen           = "0.0.0.0:7200"
+advertise_addr   = "127.0.0.1:7200"
+meta_addr        = "http://127.0.0.1:7100"
+cluster_token    = "dev-secret"
+ram_budget_bytes = 1073741824
+debug_http_listen = "127.0.0.1:7300"

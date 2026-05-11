@@ -1,0 +1,41 @@
+syntax = "proto3";
+package dtmpfs.store.v1;
+
+message Empty {}
+
+message BlockKey {
+  uint64 ino        = 1;
+  uint64 block_idx  = 2;
+  uint64 generation = 3;
+}
+
+message ReadBlockReq  { BlockKey key = 1; uint32 offset = 2; uint32 len = 3; }
+message ReadBlockResp { bytes data = 1; uint32 len = 2; }
+
+message WriteBlockReq  { BlockKey key = 1; bytes data = 2; }
+message WriteBlockResp { uint32 len = 1; }
+
+message DeleteBlockReq { BlockKey key = 1; }
+
+message ReplicateReq {
+  string   source_node_id = 1;
+  string   source_addr    = 2;
+  BlockKey key            = 3;
+}
+
+message StoreStat {
+  string node_id          = 1;
+  uint64 used_bytes       = 2;
+  uint64 capacity_bytes   = 3;
+  uint64 block_count      = 4;
+  uint64 read_bytes_total = 5;
+  uint64 write_bytes_total = 6;
+}
+
+service Store {
+  rpc ReadBlock   (ReadBlockReq)   returns (ReadBlockResp);
+  rpc WriteBlock  (WriteBlockReq)  returns (WriteBlockResp);
+  rpc DeleteBlock (DeleteBlockReq) returns (Empty);
+  rpc Replicate   (ReplicateReq)   returns (Empty);
+  rpc Stat        (Empty)          returns (StoreStat);
+}
